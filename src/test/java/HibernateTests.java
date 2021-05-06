@@ -7,6 +7,7 @@ import ru.fintech.qa.homework.utils.entity.Place;
 import ru.fintech.qa.homework.utils.entity.Workman;
 import ru.fintech.qa.homework.utils.hibernate.DbClient;
 
+import javax.persistence.PersistenceException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,54 +20,65 @@ public class HibernateTests {
 
     @Test
     public void testPublicAnimalHave10line() {
-        DbClient.createSession();
         String result = DbClient.countLineInTable("public.animal");
         Assertions.assertEquals("10", result);
-        DbClient.closeSession();
     }
 
     @Test
     public void testDoNotInsertAnimalTo10() {
-        DbClient.createSession();
+        int countCheck = 0;
         Animal animal = new Animal();
-        Assertions.assertTrue(DbClient.isNotInsertBaseEntityForId(animal, 10));
-        DbClient.closeSession();
+
+        for (int i = 1; i <= 10; i++) {
+            animal.setId(i);
+            try {
+                DbClient.insert(animal);
+            } catch (PersistenceException exception) {
+                System.out.println("В таблицу нельзя добавить строку с индексом от 1 до 10 включительно");
+                countCheck++;
+            }
+        }
+        Assertions.assertEquals(10, countCheck);
     }
 
     @Test
     public void testWorkmanName() {
-        DbClient.createSession();
         Workman workman = new Workman();
         workman.setName(null);
-        Assertions.assertTrue(DbClient.isNameNullNoCommit(workman));
-        DbClient.closeSession();
+        boolean isResultTest = false;
+        try {
+            DbClient.insert(workman);
+        } catch (PersistenceException exception) {
+            System.out.println("В таблицу public.workman нельзя добавить строку с name = null");
+            isResultTest = true;
+        }
+        Assertions.assertTrue(isResultTest);
     }
 
     @Test
     public void tesPlaceHas6Lines() {
-        DbClient.createSession();
         Place place = new Place();
         place.setId(6);
         place.setName("TestName");
         DbClient.insert(place);
         String result = DbClient.countLineInTable("public.places");
         Assertions.assertEquals("6", result);
-        DbClient.closeSession();
     }
 
     @Test
     public void zooHas3Line() {
-        DbClient.createSession();
         List<String> expected = new ArrayList<String>() {{
             add("Центральный");
             add("Западный");
             add("Северный");
         }};
+
         List<String> result = DbClient.createListColumnFromTable("public.zoo", "\"name\"");
+
         Assertions.assertEquals(3, result.size());
+
         for (String name : expected) {
             Assertions.assertTrue(result.contains(name));
         }
-        DbClient.closeSession();
     }
 }
